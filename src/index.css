@@ -1,0 +1,41 @@
+@import "tailwindcss";
+
+@theme {
+    --color-background: #0f172a;
+    --color-surface: #1e293b;
+    --color-primary: #8b5cf6;
+    --color-secondary: #10b981;
+    --color-accent: #3b82f6;
+}
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+    color-scheme: light dark;
+}
+
+body {
+    /* Stronger grey background for Light Mode to contrast with white cards */
+    @apply bg-[#e2e8f0] text-slate-900 transition-colors duration-300;
+    font-family: "Inter", sans-serif;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* Dark Mode Overrides */
+:root.dark body {
+    @apply bg-[#0f172a] text-slate-100;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+::-webkit-scrollbar-track {
+    @apply bg-transparent;
+}
+::-webkit-scrollbar-thumb {
+    @apply bg-slate-400 dark:bg-slate-700 rounded-full;
+}
+::-webkit-scrollbar-thumb:hover {
+    @apply bg-slate-500 dark:bg-slate-600;
+}
