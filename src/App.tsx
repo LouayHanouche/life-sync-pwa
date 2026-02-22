@@ -136,6 +136,7 @@ const MINUTE_OPTIONS = Array.from({ length: 60 }, (_, index) =>
 );
 const PERIOD_OPTIONS: TimePeriod[] = ["AM", "PM"];
 const TASKS_STORAGE_KEY = "life-sync-tasks-v1";
+const MAX_IMPORT_FILE_SIZE_BYTES = 1024 * 1024;
 
 function App() {
   // --- State ---
@@ -479,6 +480,10 @@ function App() {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
+    if (file.size > MAX_IMPORT_FILE_SIZE_BYTES) {
+      window.alert("File is too large. Maximum supported import size is 1 MB.");
+      return;
+    }
 
     const reader = new FileReader();
     reader.onload = () => {

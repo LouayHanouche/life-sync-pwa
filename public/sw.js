@@ -6,6 +6,14 @@ const PRECACHE_URLS = [
   "./icons/icon-192.png",
   "./icons/icon-512.png",
 ];
+const STATIC_DESTINATIONS = new Set([
+  "script",
+  "style",
+  "image",
+  "font",
+  "manifest",
+]);
+const API_PATH_PREFIXES = ["/api/", "/auth/"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -38,6 +46,9 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
+  if (API_PATH_PREFIXES.some((prefix) => url.pathname.startsWith(prefix))) {
+    return;
+  }
 
   if (request.mode === "navigate") {
     event.respondWith(
@@ -45,6 +56,11 @@ self.addEventListener("fetch", (event) => {
         () => caches.match("./index.html") || caches.match("./"),
       ),
     );
+    return;
+  }
+
+  // Cache only static assets to avoid storing future sensitive responses.
+  if (!STATIC_DESTINATIONS.has(request.destination)) {
     return;
   }
 
