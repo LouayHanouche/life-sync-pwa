@@ -55,15 +55,6 @@ npm run dev
 
 Open the local URL shown by Vite (usually `http://localhost:5173`).
 
-## Production Build
-
-```bash
-npm run build
-npm run preview
-```
-
-`build` generates the `dist/` folder.  
-`preview` serves the production build locally.
 
 ## PWA Notes
 
