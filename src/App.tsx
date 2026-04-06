@@ -3244,7 +3244,7 @@ function App() {
                                                         ),
                                                     );
                                                 }}
-                                                className="opacity-100 md:opacity-0 md:group-hover:opacity-100 p-2 text-blue-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg transition-all"
+                                                                className="opacity-100 p-2 text-blue-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg transition-all"
                                                 title="Edit task"
                                             >
                                                 Edit
@@ -3253,7 +3253,7 @@ function App() {
                                                 onClick={() =>
                                                     deleteTask(task.id)
                                                 }
-                                                className="opacity-100 md:opacity-0 md:group-hover:opacity-100 p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all"
+                                                                className="opacity-100 p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all"
                                                 title="Delete task"
                                             >
                                                 <X size={20} />
