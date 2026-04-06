@@ -1,5 +1,5 @@
-const CACHE_NAME = "life-sync-cache-v1";
-const PRECACHE_URLS = [
+const CACHE_NAME = "life-sync-cache-v2";
+const CORE_PRECACHE_URLS = [
   "./",
   "./index.html",
   "./manifest.webmanifest",
@@ -15,12 +15,57 @@ const STATIC_DESTINATIONS = new Set([
 ]);
 const API_PATH_PREFIXES = ["/api/", "/auth/"];
 
+const resolveToScopeUrl = (rawPath) => {
+  try {
+    return new URL(rawPath, self.registration.scope).toString();
+  } catch {
+    return null;
+  }
+};
+
+const extractHashedAssetUrls = async () => {
+  try {
+    const response = await fetch("./index.html", { cache: "no-store" });
+    if (!response.ok) return [];
+
+    const html = await response.text();
+    const assetRefs = new Set();
+    const refRegex = /(?:src|href)=["']([^"']+)["']/g;
+    let match = refRegex.exec(html);
+
+    while (match) {
+      const candidate = match[1];
+      if (
+        candidate &&
+        !candidate.startsWith("http") &&
+        (candidate.includes("/assets/") || candidate.startsWith("./assets/"))
+      ) {
+        const resolved = resolveToScopeUrl(candidate);
+        if (resolved) assetRefs.add(resolved);
+      }
+      match = refRegex.exec(html);
+    }
+
+    return [...assetRefs];
+  } catch {
+    return [];
+  }
+};
+
+const cacheCoreAndBuildAssets = async () => {
+  const cache = await caches.open(CACHE_NAME);
+
+  await cache.addAll(CORE_PRECACHE_URLS);
+
+  const hashedAssets = await extractHashedAssetUrls();
+  await Promise.allSettled(
+    hashedAssets.map((assetUrl) => cache.add(assetUrl)),
+  );
+};
+
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches
-      .open(CACHE_NAME)
-      .then((cache) => cache.addAll(PRECACHE_URLS))
-      .then(() => self.skipWaiting()),
+    cacheCoreAndBuildAssets().then(() => self.skipWaiting()),
   );
 });
 
@@ -52,9 +97,22 @@ self.addEventListener("fetch", (event) => {
 
   if (request.mode === "navigate") {
     event.respondWith(
-      fetch(request).catch(
-        () => caches.match("./index.html") || caches.match("./"),
-      ),
+      (async () => {
+        const cache = await caches.open(CACHE_NAME);
+        try {
+          const networkResponse = await fetch(request);
+          if (networkResponse && networkResponse.ok) {
+            cache.put(request, networkResponse.clone());
+          }
+          return networkResponse;
+        } catch {
+          return (
+            (await cache.match(request)) ||
+            (await cache.match("./index.html")) ||
+            (await cache.match("./"))
+          );
+        }
+      })(),
     );
     return;
   }
@@ -65,23 +123,28 @@ self.addEventListener("fetch", (event) => {
   }
 
   event.respondWith(
-    caches.match(request).then((cachedResponse) => {
+    (async () => {
+      const cache = await caches.open(CACHE_NAME);
+      const cachedResponse = await cache.match(request);
       if (cachedResponse) return cachedResponse;
 
-      return fetch(request).then((networkResponse) => {
+      try {
+        const networkResponse = await fetch(request);
         if (
           networkResponse &&
           networkResponse.status === 200 &&
           networkResponse.type === "basic"
         ) {
-          const responseClone = networkResponse.clone();
-          caches
-            .open(CACHE_NAME)
-            .then((cache) => cache.put(request, responseClone));
+          cache.put(request, networkResponse.clone());
         }
 
         return networkResponse;
-      });
-    }),
+      } catch {
+        if (request.destination === "image") {
+          return cache.match("./icons/icon-192.png");
+        }
+        return Response.error();
+      }
+    })(),
   );
 });
