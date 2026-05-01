@@ -12,6 +12,7 @@ import {
     Download,
     Upload,
     ChevronDown,
+    Menu,
 } from "lucide-react";
 import { format } from "date-fns";
 import { clsx, type ClassValue } from "clsx";
@@ -334,9 +335,7 @@ const getCategoryColorStyle = (token: CategoryColorToken) =>
 const normalizeCategoryName = (value: string) =>
     value.trim().replace(/\s+/g, " ");
 
-const normalizeCategoryColorToken = (
-    value: unknown,
-): CategoryColorToken => {
+const normalizeCategoryColorToken = (value: unknown): CategoryColorToken => {
     if (typeof value !== "string") return "blue";
     return CATEGORY_COLOR_OPTIONS.includes(value as CategoryColorToken)
         ? (value as CategoryColorToken)
@@ -345,7 +344,9 @@ const normalizeCategoryColorToken = (
 
 const normalizeCategoryIconToken = (value: unknown) => {
     if (typeof value !== "string") return "📌";
-    return CATEGORY_ICON_OPTIONS.includes(value as (typeof CATEGORY_ICON_OPTIONS)[number])
+    return CATEGORY_ICON_OPTIONS.includes(
+        value as (typeof CATEGORY_ICON_OPTIONS)[number],
+    )
         ? value
         : "📌";
 };
@@ -394,8 +395,7 @@ const ensureBuiltInCategories = (input: CategoryDef[]): CategoryDef[] => {
     const builtInIds = new Set(builtIns.map((category) => category.id));
     const custom = input
         .filter(
-            (category) =>
-                !category.isBuiltIn && !builtInIds.has(category.id),
+            (category) => !category.isBuiltIn && !builtInIds.has(category.id),
         )
         .filter(
             (category, index, list) =>
@@ -443,8 +443,9 @@ function App() {
     const [activeProfileId, setActiveProfileId] =
         useState<string>(DEFAULT_PROFILE_ID);
     const [inputText, setInputText] = useState("");
-    const [selectedCategoryId, setSelectedCategoryId] =
-        useState<string>(BUILTIN_CATEGORY_IDS.task);
+    const [selectedCategoryId, setSelectedCategoryId] = useState<string>(
+        BUILTIN_CATEGORY_IDS.task,
+    );
     const [activeFilter, setActiveFilter] = useState<string>("All");
     const [loading, setLoading] = useState(true);
     const [isDark, setIsDark] = useState(() => {
@@ -460,11 +461,13 @@ function App() {
     const [activeTab, setActiveTab] = useState<number>(0);
     // For daily view: which day is selected (0=Sunday, 1=Monday, ..., 6=Saturday)
     const [selectedDay, setSelectedDay] = useState<number | null>(null);
+    const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
 
     // Daily view form state
     const [dailyTaskText, setDailyTaskText] = useState("");
-    const [dailyCategoryId, setDailyCategoryId] =
-        useState<string>(BUILTIN_CATEGORY_IDS.task);
+    const [dailyCategoryId, setDailyCategoryId] = useState<string>(
+        BUILTIN_CATEGORY_IDS.task,
+    );
     const [dailyStartParts, setDailyStartParts] = useState<TimeParts>(() =>
         timeToParts("09:00"),
     );
@@ -481,12 +484,14 @@ function App() {
         string | null
     >(null);
     const [generalEditText, setGeneralEditText] = useState("");
-    const [generalEditCategoryId, setGeneralEditCategoryId] =
-        useState<string>(BUILTIN_CATEGORY_IDS.task);
+    const [generalEditCategoryId, setGeneralEditCategoryId] = useState<string>(
+        BUILTIN_CATEGORY_IDS.task,
+    );
     const [pendingImportBundle, setPendingImportBundle] =
         useState<ImportBundle | null>(null);
-    const [importSelectedMode, setImportSelectedMode] =
-        useState<ImportMode>("merge_current_profile");
+    const [importSelectedMode, setImportSelectedMode] = useState<ImportMode>(
+        "merge_current_profile",
+    );
     const [importStep, setImportStep] = useState<"select_mode" | "preview">(
         "select_mode",
     );
@@ -498,8 +503,7 @@ function App() {
     const [importModalWarning, setImportModalWarning] = useState<string | null>(
         null,
     );
-    const [importCreateProfileName, setImportCreateProfileName] =
-        useState("");
+    const [importCreateProfileName, setImportCreateProfileName] = useState("");
     const [showDeleteOptions, setShowDeleteOptions] = useState(false);
     const [deleteScope, setDeleteScope] = useState<TaskScope>("simple");
     const [infoModal, setInfoModal] = useState<InfoModalState | null>(null);
@@ -540,6 +544,7 @@ function App() {
     const [storageNotice, setStorageNotice] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     const dailyCategoryMenuRef = useRef<HTMLDivElement | null>(null);
+    const settingsMenuRef = useRef<HTMLDivElement | null>(null);
 
     // --- Effects ---
     useEffect(() => {
@@ -689,14 +694,12 @@ function App() {
                                   ),
                                   isBuiltIn: Boolean(candidate.isBuiltIn),
                                   createdAt:
-                                      typeof candidate.createdAt ===
-                                          "number" &&
+                                      typeof candidate.createdAt === "number" &&
                                       Number.isFinite(candidate.createdAt)
                                           ? candidate.createdAt
                                           : now,
                                   updatedAt:
-                                      typeof candidate.updatedAt ===
-                                          "number" &&
+                                      typeof candidate.updatedAt === "number" &&
                                       Number.isFinite(candidate.updatedAt)
                                           ? candidate.updatedAt
                                           : now,
@@ -845,10 +848,29 @@ function App() {
         };
     }, []);
 
+    useEffect(() => {
+        const handleOutsideClick = (event: MouseEvent) => {
+            const targetNode = event.target as Node;
+            if (
+                settingsMenuRef.current &&
+                !settingsMenuRef.current.contains(targetNode)
+            ) {
+                setIsSettingsMenuOpen(false);
+            }
+        };
+
+        document.addEventListener("mousedown", handleOutsideClick);
+        return () => {
+            document.removeEventListener("mousedown", handleOutsideClick);
+        };
+    }, []);
+
     const dailyStartTime = partsToTime(dailyStartParts);
     const dailyEndTime = partsToTime(dailyEndParts);
 
-    const categoryMap = new Map(categories.map((category) => [category.id, category]));
+    const categoryMap = new Map(
+        categories.map((category) => [category.id, category]),
+    );
     const getCategoryById = (categoryId: string) =>
         categoryMap.get(categoryId) ??
         categoryMap.get(BUILTIN_CATEGORY_IDS.task) ?? {
@@ -903,7 +925,9 @@ function App() {
             errors.push(`Maximum number of categories is ${MAX_CATEGORIES}.`);
         }
 
-        const categoryIds = new Set(nextCategories.map((category) => category.id));
+        const categoryIds = new Set(
+            nextCategories.map((category) => category.id),
+        );
 
         for (const category of nextCategories) {
             if (!normalizeCategoryName(category.name)) {
@@ -990,7 +1014,9 @@ function App() {
         if (!text) return null;
 
         const sourceCategoryId =
-            typeof source.categoryId === "string" ? source.categoryId.trim() : "";
+            typeof source.categoryId === "string"
+                ? source.categoryId.trim()
+                : "";
         const sourceCategoryLabel =
             typeof source.category === "string"
                 ? source.category.trim().toLowerCase()
@@ -1034,7 +1060,9 @@ function App() {
         };
     };
 
-    const parseImportedCategories = (rawData: unknown): CategoryDef[] | null => {
+    const parseImportedCategories = (
+        rawData: unknown,
+    ): CategoryDef[] | null => {
         if (!rawData || typeof rawData !== "object") return null;
         const payload = rawData as { categories?: unknown };
         if (!Array.isArray(payload.categories)) return null;
@@ -1149,10 +1177,10 @@ function App() {
             rawData &&
             typeof rawData === "object" &&
             !Array.isArray(rawData) &&
-            typeof (rawData as { activeProfileId?: unknown }).activeProfileId ===
-                "string"
+            typeof (rawData as { activeProfileId?: unknown })
+                .activeProfileId === "string"
                 ? ((rawData as { activeProfileId: string }).activeProfileId ??
-                      null)
+                  null)
                 : null;
 
         const parsedProfile =
@@ -1212,7 +1240,8 @@ function App() {
         existingProfiles: Profile[],
     ) => {
         const base =
-            normalizeProfileName(desiredName) || formatImportProfileFallbackName();
+            normalizeProfileName(desiredName) ||
+            formatImportProfileFallbackName();
 
         const existingNames = new Set(
             existingProfiles.map((profile) => profile.name.toLowerCase()),
@@ -1234,7 +1263,8 @@ function App() {
             createDefaultProfile();
         const profileTasks = tasks.filter(
             (task) =>
-                task.day !== null && normalizeTaskProfileId(task) === profile.id,
+                task.day !== null &&
+                normalizeTaskProfileId(task) === profile.id,
         );
         const profileCategoryIds = new Set(
             profileTasks.map((task) => normalizeTaskCategoryId(task)),
@@ -1356,9 +1386,14 @@ function App() {
         commitState(nextTasks, profiles, categories, activeProfileId);
     };
 
-    const preserveSimpleTasks = (current: Task[], candidate: Task[]): Task[] => {
+    const preserveSimpleTasks = (
+        current: Task[],
+        candidate: Task[],
+    ): Task[] => {
         const simpleTasks = current.filter((task) => task.day === null);
-        const nonSimpleCandidate = candidate.filter((task) => task.day !== null);
+        const nonSimpleCandidate = candidate.filter(
+            (task) => task.day !== null,
+        );
 
         const existingIds = new Set(simpleTasks.map((task) => task.id));
         const dedupedWeekly = nonSimpleCandidate.map((task) => {
@@ -1578,7 +1613,8 @@ function App() {
                 }
                 const sameNameExisting = categories.find(
                     (entry) =>
-                        entry.name.toLowerCase() === incoming.name.toLowerCase(),
+                        entry.name.toLowerCase() ===
+                        incoming.name.toLowerCase(),
                 );
                 if (sameNameExisting) {
                     categoriesMappedByName += 1;
@@ -1605,7 +1641,9 @@ function App() {
                     : task.id;
                 existingTaskIds.add(incomingTaskId);
                 const normalizedCategoryId = normalizeTaskCategoryId(task);
-                const resolvedCategoryId = mergedCategoryIds.has(normalizedCategoryId)
+                const resolvedCategoryId = mergedCategoryIds.has(
+                    normalizedCategoryId,
+                )
                     ? normalizedCategoryId
                     : BUILTIN_CATEGORY_IDS.task;
                 if (resolvedCategoryId === BUILTIN_CATEGORY_IDS.task) {
@@ -1620,7 +1658,10 @@ function App() {
                 };
             });
 
-            const nextTasks = preserveSimpleTasks(tasks, [...tasks, ...incomingMapped]);
+            const nextTasks = preserveSimpleTasks(tasks, [
+                ...tasks,
+                ...incomingMapped,
+            ]);
 
             const warnings: string[] = [];
             if (generatedCount > 0) {
@@ -1664,7 +1705,8 @@ function App() {
                 }
                 const sameNameExisting = categories.find(
                     (entry) =>
-                        entry.name.toLowerCase() === incoming.name.toLowerCase(),
+                        entry.name.toLowerCase() ===
+                        incoming.name.toLowerCase(),
                 );
                 if (sameNameExisting) {
                     categoriesMappedByName += 1;
@@ -1687,7 +1729,9 @@ function App() {
             );
 
             let generatedCount = 0;
-            const existingTaskIds = new Set(remainingTasks.map((task) => task.id));
+            const existingTaskIds = new Set(
+                remainingTasks.map((task) => task.id),
+            );
             const replacementTasks = importedTasks.map((task) => {
                 const nextId = existingTaskIds.has(task.id)
                     ? (() => {
@@ -1697,7 +1741,9 @@ function App() {
                     : task.id;
                 existingTaskIds.add(nextId);
                 const normalizedCategoryId = normalizeTaskCategoryId(task);
-                const resolvedCategoryId = mergedCategoryIds.has(normalizedCategoryId)
+                const resolvedCategoryId = mergedCategoryIds.has(
+                    normalizedCategoryId,
+                )
                     ? normalizedCategoryId
                     : BUILTIN_CATEGORY_IDS.task;
                 if (resolvedCategoryId === BUILTIN_CATEGORY_IDS.task) {
@@ -1712,12 +1758,11 @@ function App() {
                 };
             });
 
-            const removedFromProfile =
-                tasks.length - remainingTasks.length;
-            const nextTasks = preserveSimpleTasks(
-                tasks,
-                [...remainingTasks, ...replacementTasks],
-            );
+            const removedFromProfile = tasks.length - remainingTasks.length;
+            const nextTasks = preserveSimpleTasks(tasks, [
+                ...remainingTasks,
+                ...replacementTasks,
+            ]);
 
             const warnings: string[] = [];
             if (generatedCount > 0) {
@@ -1808,7 +1853,9 @@ function App() {
                 : task.id;
             existingTaskIds.add(nextId);
             const normalizedCategoryId = normalizeTaskCategoryId(task);
-            const resolvedCategoryId = mergedCategoryIds.has(normalizedCategoryId)
+            const resolvedCategoryId = mergedCategoryIds.has(
+                normalizedCategoryId,
+            )
                 ? normalizedCategoryId
                 : BUILTIN_CATEGORY_IDS.task;
             if (resolvedCategoryId === BUILTIN_CATEGORY_IDS.task) {
@@ -1823,7 +1870,10 @@ function App() {
             };
         });
 
-        const nextTasks = preserveSimpleTasks(tasks, [...tasks, ...mappedTasks]);
+        const nextTasks = preserveSimpleTasks(tasks, [
+            ...tasks,
+            ...mappedTasks,
+        ]);
 
         const warnings: string[] = [];
         if (generatedCount > 0) {
@@ -1982,7 +2032,8 @@ function App() {
     const deleteTask = (id: string) => {
         setConfirmDialog({
             title: "Delete Task",
-            message: "Delete this task permanently? This action cannot be undone.",
+            message:
+                "Delete this task permanently? This action cannot be undone.",
             confirmLabel: "Delete",
             cancelLabel: "Cancel",
             tone: "danger",
@@ -2125,11 +2176,15 @@ function App() {
             return;
         }
 
-        const preview = applyImportMode(importSelectedMode, pendingImportBundle, {
-            newProfileName: importCreateProfileName,
-        });
+        const preview = applyImportMode(
+            importSelectedMode,
+            pendingImportBundle,
+            {
+                newProfileName: importCreateProfileName,
+            },
+        );
         setImportPreviewResult(preview);
-        setImportModalError(preview.ok ? null : preview.error ?? null);
+        setImportModalError(preview.ok ? null : (preview.error ?? null));
         setImportModalWarning(preview.warnings?.[0] ?? preview.warning ?? null);
         if (preview.ok) {
             setImportStep("preview");
@@ -2150,7 +2205,9 @@ function App() {
         );
 
         setImportPreviewResult(refreshedPreview);
-        setImportModalError(refreshedPreview.ok ? null : refreshedPreview.error ?? null);
+        setImportModalError(
+            refreshedPreview.ok ? null : (refreshedPreview.error ?? null),
+        );
         setImportModalWarning(
             refreshedPreview.warnings?.[0] ?? refreshedPreview.warning ?? null,
         );
@@ -2382,7 +2439,12 @@ function App() {
         const nextTasks = [...tasks, ...duplicatedTasks];
         const nextProfiles = [...profiles, duplicatedProfile];
         if (
-            commitState(nextTasks, nextProfiles, categories, duplicatedProfile.id)
+            commitState(
+                nextTasks,
+                nextProfiles,
+                categories,
+                duplicatedProfile.id,
+            )
         ) {
             setProfileModal(null);
             setProfileModalInput("");
@@ -2542,7 +2604,8 @@ function App() {
         if (
             categories.some(
                 (category) =>
-                    category.name.toLowerCase() === normalizedName.toLowerCase(),
+                    category.name.toLowerCase() ===
+                    normalizedName.toLowerCase(),
             )
         ) {
             setInfoModal({
@@ -2622,7 +2685,8 @@ function App() {
             categories.some(
                 (category) =>
                     category.id !== editingCategoryId &&
-                    category.name.toLowerCase() === normalizedName.toLowerCase(),
+                    category.name.toLowerCase() ===
+                        normalizedName.toLowerCase(),
             )
         ) {
             setInfoModal({
@@ -2721,7 +2785,9 @@ function App() {
         const nextActiveFilter =
             activeFilter === categoryDeleteTargetId ? "All" : activeFilter;
 
-        if (!commitState(nextTasks, profiles, nextCategories, activeProfileId)) {
+        if (
+            !commitState(nextTasks, profiles, nextCategories, activeProfileId)
+        ) {
             return;
         }
 
@@ -2783,8 +2849,10 @@ function App() {
         : null;
 
     const categoryDeleteAffectedTasks = categoryDeleteTargetId
-        ? tasks.filter((task) => normalizeTaskCategoryId(task) === categoryDeleteTargetId)
-              .length
+        ? tasks.filter(
+              (task) =>
+                  normalizeTaskCategoryId(task) === categoryDeleteTargetId,
+          ).length
         : 0;
 
     const availableCategoryReassignOptions = categories.filter(
@@ -2808,21 +2876,179 @@ function App() {
                     </div>
 
                     <div className="flex flex-col items-end gap-2">
-                        <button
-                            onClick={() => setIsDark(!isDark)}
-                            className="p-3 rounded-full bg-white dark:bg-slate-800 shadow-md border-2 border-slate-300 dark:border-slate-700 hover:scale-105 active:scale-95 transition-all text-orange-600 dark:text-purple-400"
-                            title={
-                                isDark
-                                    ? "Switch to Light Mode"
-                                    : "Switch to Dark Mode"
-                            }
-                        >
-                            {isDark ? (
-                                <Sun size={24} fill="currentColor" />
-                            ) : (
-                                <Moon size={24} fill="currentColor" />
-                            )}
-                        </button>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setIsDark(!isDark)}
+                                className="p-3 rounded-full bg-white dark:bg-slate-800 shadow-md border-2 border-slate-300 dark:border-slate-700 hover:scale-105 active:scale-95 transition-all text-orange-600 dark:text-purple-400"
+                                title={
+                                    isDark
+                                        ? "Switch to Light Mode"
+                                        : "Switch to Dark Mode"
+                                }
+                            >
+                                {isDark ? (
+                                    <Sun size={24} fill="currentColor" />
+                                ) : (
+                                    <Moon size={24} fill="currentColor" />
+                                )}
+                            </button>
+
+                            <div className="relative" ref={settingsMenuRef}>
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        setIsSettingsMenuOpen((prev) => !prev)
+                                    }
+                                    className="p-3 rounded-full bg-white dark:bg-slate-800 shadow-md border-2 border-slate-300 dark:border-slate-700 hover:scale-105 active:scale-95 transition-all text-slate-700 dark:text-slate-300"
+                                    title="Open settings menu"
+                                >
+                                    <Menu size={24} />
+                                </button>
+
+                                {isSettingsMenuOpen && (
+                                    <div className="absolute right-0 z-50 mt-2 w-64 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900">
+                                        <div className="bg-slate-50 px-3 py-2 text-xs font-bold uppercase tracking-wider text-slate-500 dark:bg-slate-800/50">
+                                            Simple Tasks settings
+                                        </div>
+                                        <div className="py-1">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    exportTasks("all");
+                                                    setIsSettingsMenuOpen(
+                                                        false,
+                                                    );
+                                                }}
+                                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-bold text-slate-700 transition-colors hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
+                                            >
+                                                <Download size={14} />
+                                                Export all
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    exportTasks("profile");
+                                                    setIsSettingsMenuOpen(
+                                                        false,
+                                                    );
+                                                }}
+                                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-bold text-slate-700 transition-colors hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
+                                            >
+                                                <Download size={14} />
+                                                Export profile
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    triggerImport();
+                                                    setIsSettingsMenuOpen(
+                                                        false,
+                                                    );
+                                                }}
+                                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-bold text-slate-700 transition-colors hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
+                                            >
+                                                <Upload size={14} />
+                                                Import
+                                            </button>
+                                        </div>
+
+                                        <div className="border-t border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold uppercase tracking-wider text-slate-500 dark:border-slate-700 dark:bg-slate-800/50">
+                                            Weekly Schedule settings
+                                        </div>
+                                        <div className="py-1">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    createProfile();
+                                                    setIsSettingsMenuOpen(
+                                                        false,
+                                                    );
+                                                }}
+                                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-bold text-slate-700 transition-colors hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
+                                            >
+                                                <Plus size={14} />
+                                                Add Profile
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    duplicateActiveProfile();
+                                                    setIsSettingsMenuOpen(
+                                                        false,
+                                                    );
+                                                }}
+                                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-bold text-slate-700 transition-colors hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
+                                            >
+                                                Duplicate Profile
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    renameActiveProfile();
+                                                    setIsSettingsMenuOpen(
+                                                        false,
+                                                    );
+                                                }}
+                                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-bold text-slate-700 transition-colors hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
+                                            >
+                                                Rename Profile
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    requestDeleteProfile();
+                                                    setIsSettingsMenuOpen(
+                                                        false,
+                                                    );
+                                                }}
+                                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-bold text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                                            >
+                                                Delete Profile
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    exportTasks("all");
+                                                    setIsSettingsMenuOpen(
+                                                        false,
+                                                    );
+                                                }}
+                                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-bold text-slate-700 transition-colors hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
+                                            >
+                                                <Download size={14} />
+                                                Export all
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    exportTasks("profile");
+                                                    setIsSettingsMenuOpen(
+                                                        false,
+                                                    );
+                                                }}
+                                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-bold text-slate-700 transition-colors hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
+                                            >
+                                                <Download size={14} />
+                                                Export profile
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    triggerImport();
+                                                    setIsSettingsMenuOpen(
+                                                        false,
+                                                    );
+                                                }}
+                                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-bold text-slate-700 transition-colors hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
+                                            >
+                                                <Upload size={14} />
+                                                Import
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                         <div className="text-xs font-bold text-slate-500 flex items-center gap-1.5 uppercase tracking-wide">
                             <Calendar size={12} />
                             {format(new Date(), "MMM do")}
@@ -3000,34 +3226,13 @@ function App() {
                                 })}
                             </div>
 
-                            <div className="flex flex-wrap items-center gap-2">
-                                <button
-                                    onClick={() => exportTasks("all")}
-                                    className="text-xs font-bold text-slate-700 dark:text-slate-200 transition-colors flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
-                                >
-                                    <Download size={14} />
-                                    Export all
-                                </button>
-                                <button
-                                    onClick={() => exportTasks("profile")}
-                                    className="text-xs font-bold text-slate-700 dark:text-slate-200 transition-colors flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
-                                >
-                                    <Download size={14} />
-                                    Export profile
-                                </button>
+                            <div className="flex flex-wrap items-center justify-center gap-2">
                                 <button
                                     type="button"
                                     onClick={() => setShowCategoryManager(true)}
                                     className="text-xs font-bold text-purple-700 dark:text-purple-300 transition-colors flex items-center gap-1 px-3 py-1.5 rounded-lg border border-purple-300 dark:border-purple-700 hover:bg-purple-50 dark:hover:bg-purple-900/20"
                                 >
                                     Manage Categories
-                                </button>
-                                <button
-                                    onClick={triggerImport}
-                                    className="text-xs font-bold text-slate-700 dark:text-slate-200 transition-colors flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
-                                >
-                                    <Upload size={14} />
-                                    Import
                                 </button>
                                 <button
                                     onClick={() =>
@@ -3167,8 +3372,8 @@ function App() {
                                     return (
                                         <div
                                             key={task.id}
-                                                className={cn(
-                                                    "group flex items-center gap-4 p-4 rounded-xl transition-all duration-300",
+                                            className={cn(
+                                                "group flex items-center gap-4 p-4 rounded-xl transition-all duration-300",
                                                 // Light Mode Styles (Distinct Card)
                                                 "bg-white border-l-[6px] shadow-md border-y border-r border-slate-200",
                                                 // Dark Mode Styles
@@ -3224,7 +3429,9 @@ function App() {
                                                             "border-current opacity-80",
                                                         )}
                                                     >
-                                                        <span>{category.iconToken}</span>{" "}
+                                                        <span>
+                                                            {category.iconToken}
+                                                        </span>{" "}
                                                         {category.name}
                                                     </span>
                                                 </div>
@@ -3244,7 +3451,7 @@ function App() {
                                                         ),
                                                     );
                                                 }}
-                                                                className="opacity-100 p-2 text-blue-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg transition-all"
+                                                className="opacity-100 p-2 text-blue-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg transition-all"
                                                 title="Edit task"
                                             >
                                                 Edit
@@ -3253,7 +3460,7 @@ function App() {
                                                 onClick={() =>
                                                     deleteTask(task.id)
                                                 }
-                                                                className="opacity-100 p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all"
+                                                className="opacity-100 p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-all"
                                                 title="Delete task"
                                             >
                                                 <X size={20} />
@@ -3302,55 +3509,6 @@ function App() {
                                             </option>
                                         ))}
                                     </select>
-                                    <button
-                                        type="button"
-                                        onClick={createProfile}
-                                        className="text-xs font-bold text-green-700 dark:text-green-300 transition-colors flex items-center gap-1 px-3 py-1.5 rounded-lg border border-green-300 dark:border-green-700 hover:bg-green-50 dark:hover:bg-green-900/20"
-                                    >
-                                        + Profile
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={duplicateActiveProfile}
-                                        className="text-xs font-bold text-slate-700 dark:text-slate-200 transition-colors flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
-                                    >
-                                        Duplicate
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={renameActiveProfile}
-                                        className="text-xs font-bold text-slate-700 dark:text-slate-200 transition-colors flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
-                                    >
-                                        Rename
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={requestDeleteProfile}
-                                        className="text-xs font-bold text-red-600 dark:text-red-400 transition-colors flex items-center gap-1 px-3 py-1.5 rounded-lg border border-red-200 dark:border-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
-                                    >
-                                        Delete Profile
-                                    </button>
-                                    <button
-                                        onClick={() => exportTasks("all")}
-                                        className="text-xs font-bold text-slate-700 dark:text-slate-200 transition-colors flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
-                                    >
-                                        <Download size={14} />
-                                        Export all
-                                    </button>
-                                    <button
-                                        onClick={() => exportTasks("profile")}
-                                        className="text-xs font-bold text-slate-700 dark:text-slate-200 transition-colors flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
-                                    >
-                                        <Download size={14} />
-                                        Export profile
-                                    </button>
-                                    <button
-                                        onClick={triggerImport}
-                                        className="text-xs font-bold text-slate-700 dark:text-slate-200 transition-colors flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
-                                    >
-                                        <Upload size={14} />
-                                        Import
-                                    </button>
                                     <button
                                         onClick={() =>
                                             requestResetProgress("weekly")
@@ -3481,7 +3639,9 @@ function App() {
                                                                                     {/* Task title with matching category icon */}
                                                                                     <div className="mb-2 flex min-w-0 items-start gap-2">
                                                                                         <span className="mt-0.5 shrink-0 text-slate-700 dark:text-slate-300">
-                                                                                            {category.iconToken}
+                                                                                            {
+                                                                                                category.iconToken
+                                                                                            }
                                                                                         </span>
                                                                                         <div
                                                                                             className="text-sm min-w-0"
@@ -3619,37 +3779,41 @@ function App() {
                                                     {categories.map(
                                                         (category) => (
                                                             <button
-                                                                key={category.id}
-                                                                type="button"
-                                                            onClick={() => {
-                                                                setDailyCategoryId(
-                                                                    category.id,
-                                                                );
-                                                                setIsDailyCategoryOpen(
-                                                                    false,
-                                                                );
-                                                            }}
-                                                            className={cn(
-                                                                "flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-bold transition-colors",
-                                                                dailyCategoryId ===
+                                                                key={
                                                                     category.id
-                                                                    ? "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200"
-                                                                    : "text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800",
-                                                            )}
-                                                        >
-                                                            {
-                                                                category.iconToken
-                                                            }
-                                                            <span>
-                                                                {category.name}
-                                                            </span>
-                                                        </button>
+                                                                }
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setDailyCategoryId(
+                                                                        category.id,
+                                                                    );
+                                                                    setIsDailyCategoryOpen(
+                                                                        false,
+                                                                    );
+                                                                }}
+                                                                className={cn(
+                                                                    "flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-bold transition-colors",
+                                                                    dailyCategoryId ===
+                                                                        category.id
+                                                                        ? "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200"
+                                                                        : "text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800",
+                                                                )}
+                                                            >
+                                                                {
+                                                                    category.iconToken
+                                                                }
+                                                                <span>
+                                                                    {
+                                                                        category.name
+                                                                    }
+                                                                </span>
+                                                            </button>
                                                         ),
                                                     )}
                                                 </div>
                                             )}
                                         </div>
-                                            <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-lg p-1 border border-slate-200 dark:border-slate-700 lg:w-auto lg:min-w-[390px] lg:flex-none">
+                                        <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-lg p-1 border border-slate-200 dark:border-slate-700 lg:w-auto lg:min-w-[390px] lg:flex-none">
                                             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
                                                 <div className="flex items-center gap-1 min-w-0">
                                                     <select
@@ -3871,9 +4035,12 @@ function App() {
                                                 );
                                             })
                                             .map((task) => {
-                                                const category = getCategoryById(
-                                                    normalizeTaskCategoryId(task),
-                                                );
+                                                const category =
+                                                    getCategoryById(
+                                                        normalizeTaskCategoryId(
+                                                            task,
+                                                        ),
+                                                    );
                                                 const categoryStyle =
                                                     getCategoryColorStyle(
                                                         category.colorToken,
@@ -3955,7 +4122,9 @@ function App() {
                                                                             }
                                                                         </span>
                                                                         <span className="uppercase text-[10px] font-bold px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                                                                            {category.name}
+                                                                            {
+                                                                                category.name
+                                                                            }
                                                                         </span>
                                                                     </div>
                                                                 </div>
@@ -4015,9 +4184,13 @@ function App() {
                         {importStep === "select_mode" ? (
                             <>
                                 <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-                                    Found {pendingImportBundle.tasks.length} task
-                                    {pendingImportBundle.tasks.length === 1 ? "" : "s"} in this
-                                    backup. Choose import mode and review impact before confirming.
+                                    Found {pendingImportBundle.tasks.length}{" "}
+                                    task
+                                    {pendingImportBundle.tasks.length === 1
+                                        ? ""
+                                        : "s"}{" "}
+                                    in this backup. Choose import mode and
+                                    review impact before confirming.
                                 </p>
                                 <div className="mt-4 space-y-3">
                                     <label className="block text-xs font-bold uppercase tracking-wide text-slate-500">
@@ -4046,7 +4219,8 @@ function App() {
                                         </option>
                                     </select>
 
-                                    {importSelectedMode === "create_new_profile" && (
+                                    {importSelectedMode ===
+                                        "create_new_profile" && (
                                         <>
                                             <label className="block text-xs font-bold uppercase tracking-wide text-slate-500">
                                                 New profile name
@@ -4060,7 +4234,9 @@ function App() {
                                                     )
                                                 }
                                                 className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-                                                placeholder={IMPORT_DEFAULT_PROFILE_BASE_NAME}
+                                                placeholder={
+                                                    IMPORT_DEFAULT_PROFILE_BASE_NAME
+                                                }
                                             />
                                         </>
                                     )}
@@ -4074,43 +4250,75 @@ function App() {
                                 {importPreviewResult?.impact && (
                                     <ul className="mt-3 space-y-1 text-sm text-slate-700 dark:text-slate-200">
                                         <li>
-                                            • {importPreviewResult.impact.tasksToImport} task
-                                            {importPreviewResult.impact.tasksToImport === 1
+                                            •{" "}
+                                            {
+                                                importPreviewResult.impact
+                                                    .tasksToImport
+                                            }{" "}
+                                            task
+                                            {importPreviewResult.impact
+                                                .tasksToImport === 1
                                                 ? ""
                                                 : "s"}{" "}
                                             detected
                                         </li>
                                         <li>
-                                            • {importPreviewResult.impact.tasksAdded} task
-                                            {importPreviewResult.impact.tasksAdded === 1
+                                            •{" "}
+                                            {
+                                                importPreviewResult.impact
+                                                    .tasksAdded
+                                            }{" "}
+                                            task
+                                            {importPreviewResult.impact
+                                                .tasksAdded === 1
                                                 ? ""
                                                 : "s"}{" "}
                                             to add
                                         </li>
                                         <li>
-                                            • {importPreviewResult.impact.tasksRemoved} task
-                                            {importPreviewResult.impact.tasksRemoved === 1
+                                            •{" "}
+                                            {
+                                                importPreviewResult.impact
+                                                    .tasksRemoved
+                                            }{" "}
+                                            task
+                                            {importPreviewResult.impact
+                                                .tasksRemoved === 1
                                                 ? ""
                                                 : "s"}{" "}
                                             to remove
                                         </li>
                                         <li>
-                                            • {importPreviewResult.impact.profilesAdded} profile
-                                            {importPreviewResult.impact.profilesAdded === 1
+                                            •{" "}
+                                            {
+                                                importPreviewResult.impact
+                                                    .profilesAdded
+                                            }{" "}
+                                            profile
+                                            {importPreviewResult.impact
+                                                .profilesAdded === 1
                                                 ? ""
                                                 : "s"}{" "}
                                             to add
                                         </li>
                                         <li>
-                                            • {importPreviewResult.impact.categoriesAdded} categor
-                                            {importPreviewResult.impact.categoriesAdded === 1
+                                            •{" "}
+                                            {
+                                                importPreviewResult.impact
+                                                    .categoriesAdded
+                                            }{" "}
+                                            categor
+                                            {importPreviewResult.impact
+                                                .categoriesAdded === 1
                                                 ? "y"
                                                 : "ies"}{" "}
                                             to add
                                         </li>
-                                        {importPreviewResult.impact.notes.map((note) => (
-                                            <li key={note}>• {note}</li>
-                                        ))}
+                                        {importPreviewResult.impact.notes.map(
+                                            (note) => (
+                                                <li key={note}>• {note}</li>
+                                            ),
+                                        )}
                                     </ul>
                                 )}
                             </>
@@ -4122,7 +4330,7 @@ function App() {
                             </p>
                         )}
 
-        {importModalWarning && (
+                        {importModalWarning && (
                             <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
                                 {importModalWarning}
                             </p>
@@ -4149,7 +4357,9 @@ function App() {
                             {importStep === "preview" ? (
                                 <>
                                     <button
-                                        onClick={() => setImportStep("select_mode")}
+                                        onClick={() =>
+                                            setImportStep("select_mode")
+                                        }
                                         className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
                                     >
                                         Back
@@ -4374,7 +4584,9 @@ function App() {
                                                 <div className="grid gap-2 md:grid-cols-[1fr_auto_auto_auto_auto] md:items-center">
                                                     <input
                                                         type="text"
-                                                        value={editingCategoryName}
+                                                        value={
+                                                            editingCategoryName
+                                                        }
                                                         onChange={(e) =>
                                                             setEditingCategoryName(
                                                                 e.target.value,
@@ -4399,9 +4611,7 @@ function App() {
                                                         {CATEGORY_COLOR_OPTIONS.map(
                                                             (color) => (
                                                                 <option
-                                                                    key={
-                                                                        color
-                                                                    }
+                                                                    key={color}
                                                                     value={
                                                                         color
                                                                     }
@@ -4438,7 +4648,9 @@ function App() {
                                                     </select>
                                                     <button
                                                         type="button"
-                                                        onClick={saveEditedCategory}
+                                                        onClick={
+                                                            saveEditedCategory
+                                                        }
                                                         className="h-9 rounded-lg bg-green-600 px-3 text-xs font-bold text-white hover:bg-green-700"
                                                     >
                                                         Save
@@ -4472,7 +4684,8 @@ function App() {
                                                         style.borderClass,
                                                     )}
                                                 >
-                                                    {category.iconToken} {category.name}
+                                                    {category.iconToken}{" "}
+                                                    {category.name}
                                                 </span>
                                                 {category.isBuiltIn && (
                                                     <span className="text-[10px] font-bold uppercase text-slate-500">
@@ -4526,7 +4739,7 @@ function App() {
                             Delete Category
                         </h3>
                         <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-                            Delete "{categoryDeleteTarget.name}" and reassign {" "}
+                            Delete "{categoryDeleteTarget.name}" and reassign{" "}
                             {categoryDeleteAffectedTasks} task
                             {categoryDeleteAffectedTasks === 1 ? "" : "s"}? This
                             action cannot be undone.
@@ -4542,11 +4755,16 @@ function App() {
                             }
                             className="mt-1 h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                         >
-                            {availableCategoryReassignOptions.map((category) => (
-                                <option key={category.id} value={category.id}>
-                                    {category.name}
-                                </option>
-                            ))}
+                            {availableCategoryReassignOptions.map(
+                                (category) => (
+                                    <option
+                                        key={category.id}
+                                        value={category.id}
+                                    >
+                                        {category.name}
+                                    </option>
+                                ),
+                            )}
                         </select>
 
                         <div className="mt-4 flex flex-wrap justify-end gap-2">
